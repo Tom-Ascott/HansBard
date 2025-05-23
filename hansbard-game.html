@@ -1,0 +1,1798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HansBard - Daily Parliamentary Word Game</title>
+    <meta name="description" content="Daily word game using UK Parliament mention frequencies. Guess which political terms are used more often in parliamentary debates.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #f8f7f5;
+            --bg-secondary: white;
+            --text-primary: #2c2c2c;
+            --text-secondary: #7f8c8d;
+            --accent-color: #d4a574;
+            --accent-dark: #c8956d;
+            --border-color: #e8e8e8;
+            --success-color: #27ae60;
+            --error-color: #e74c3c;
+            --warning-color: #f39c12;
+            --navy: #2c3e50;
+            --shadow-light: 0 2px 8px rgba(0,0,0,0.06);
+            --shadow-medium: 0 4px 12px rgba(0,0,0,0.08);
+            --shadow-heavy: 0 8px 24px rgba(0,0,0,0.12);
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.3s ease;
+            --transition-slow: 0.5s ease;
+            --slide-duration: 0.6s;
+            --word-width: 180px;
+            --word-gap: 24px;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --text-primary: #e8e8e8;
+            --text-secondary: #a8a8a8;
+            --border-color: #404040;
+            --shadow-light: 0 2px 8px rgba(0,0,0,0.3);
+            --shadow-medium: 0 4px 12px rgba(0,0,0,0.4);
+            --shadow-heavy: 0 8px 24px rgba(0,0,0,0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        body {
+            font-family: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: var(--text-primary);
+            transition: all var(--transition-normal);
+            line-height: 1.6;
+        }
+
+        .game-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-medium);
+            max-width: 700px;
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all var(--transition-normal);
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-dark) 100%);
+            color: white;
+            padding: 24px;
+            text-align: center;
+            border-bottom: 3px solid var(--navy);
+            position: relative;
+        }
+
+        .header-controls {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .header-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition-fast);
+            font-size: 16px;
+        }
+
+        .header-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.05);
+        }
+
+        .header-btn:focus-visible {
+            outline: 3px solid rgba(255,255,255,0.5);
+            outline-offset: 2px;
+        }
+
+        .title {
+            font-family: 'Playfair Display', serif;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            opacity: 0.95;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .game-info {
+            background: var(--navy);
+            color: white;
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            font-weight: 600;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .game-content {
+            padding: 32px 24px;
+        }
+
+        .game-progress {
+            margin-bottom: 32px;
+        }
+
+        .progress-label {
+            text-align: center;
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .game-boxes {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 32px;
+        }
+
+        .game-box {
+            width: 40px;
+            height: 40px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: all var(--transition-normal);
+            position: relative;
+            overflow: hidden;
+            background: var(--bg-secondary);
+            cursor: default;
+        }
+
+        .game-box:focus {
+            outline: 2px solid var(--accent-color);
+            outline-offset: 2px;
+        }
+
+        .game-box.completed.correct {
+            background: var(--success-color);
+            border-color: var(--success-color);
+            color: white;
+            animation: flip 0.6s ease-in-out;
+        }
+
+        .game-box.completed.incorrect {
+            background: var(--error-color);
+            border-color: var(--error-color);
+            color: white;
+            animation: flip 0.6s ease-in-out;
+        }
+
+        .game-box.current {
+            border-color: var(--accent-color);
+            background: rgba(212, 165, 116, 0.1);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes flip {
+            0% { transform: rotateY(0); }
+            50% { transform: rotateY(90deg); }
+            100% { transform: rotateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+
+        /* NEW: Simplified carousel system */
+        .word-slide-container {
+            margin-bottom: 32px;
+            padding: 24px 16px;
+            background: var(--bg-primary);
+            border-radius: 12px;
+            position: relative;
+        }
+
+        .word-carousel {
+            position: relative;
+            height: 140px;
+            overflow: hidden;
+            margin: 0 auto;
+            max-width: 636px; /* (180px + 24px) * 3 + 24px * 2 = 636px */
+        }
+
+        .word-track {
+            display: flex;
+            align-items: center;
+            gap: var(--word-gap);
+            height: 100%;
+            position: absolute;
+            left: 0;
+            transition: transform var(--slide-duration) cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .word-slot {
+            width: var(--word-width);
+            flex-shrink: 0;
+            text-align: center;
+            position: relative;
+        }
+
+        .word-card {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px 16px;
+            transition: all var(--transition-normal);
+            position: relative;
+            overflow: hidden;
+            height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* Word states based on visual position */
+        .word-slot.position-previous .word-card {
+            border-color: var(--success-color);
+            background: rgba(39, 174, 96, 0.05);
+            transform: scale(0.9);
+        }
+
+        .word-slot.position-current .word-card {
+            border-color: var(--accent-color);
+            background: var(--bg-secondary);
+            box-shadow: 0 4px 16px rgba(212, 165, 116, 0.2);
+            transform: scale(1);
+        }
+
+        .word-slot.position-next .word-card {
+            border-color: var(--text-secondary);
+            background: var(--bg-primary);
+            opacity: 0.8;
+            transform: scale(0.9);
+        }
+
+        .word-slot.position-next .word-text,
+        .word-slot.position-next .word-count {
+            filter: blur(3px);
+        }
+
+        .word-slot.revealed .word-text,
+        .word-slot.revealed .word-count {
+            filter: none !important;
+        }
+
+        .word-slot.revealed .word-card {
+            animation: revealPulse 0.6s ease-out;
+        }
+
+        @keyframes revealPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .word-text {
+            font-family: 'Playfair Display', serif;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+            transition: filter var(--transition-normal);
+        }
+
+        .word-count {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            transition: filter var(--transition-normal);
+        }
+
+        .word-status {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            opacity: 0.7;
+        }
+
+        .word-slot.position-previous .word-status {
+            background: var(--success-color);
+        }
+
+        .word-slot.position-current .word-status {
+            background: var(--accent-color);
+            animation: pulse 2s infinite;
+        }
+
+        .word-slot.position-next .word-status {
+            background: var(--text-secondary);
+        }
+
+        /* Arrows between words */
+        .arrow {
+            font-size: 24px;
+            color: var(--accent-color);
+            font-weight: bold;
+            flex-shrink: 0;
+            transition: all var(--transition-normal);
+            opacity: 0.6;
+        }
+
+        .arrow.animate {
+            animation: arrowPulse 0.5s ease-in-out;
+        }
+
+        @keyframes arrowPulse {
+            0%, 100% { transform: scale(1); opacity: 0.6; }
+            50% { transform: scale(1.2); opacity: 1; }
+        }
+
+        .question-prompt {
+            text-align: center;
+            margin-bottom: 24px;
+            font-size: 18px;
+            color: var(--text-primary);
+            font-weight: 400;
+            line-height: 1.5;
+            padding: 16px;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            border-left: 4px solid var(--accent-color);
+        }
+
+        .buttons {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 16px 32px;
+            border: 2px solid;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            font-family: inherit;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: 140px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:focus-visible {
+            outline: 3px solid var(--accent-color);
+            outline-offset: 2px;
+        }
+
+        .btn-higher {
+            background: var(--bg-secondary);
+            border-color: var(--success-color);
+            color: var(--success-color);
+        }
+
+        .btn-higher:hover:not(:disabled) {
+            background: var(--success-color);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-light);
+        }
+
+        .btn-lower {
+            background: var(--bg-secondary);
+            border-color: var(--error-color);
+            color: var(--error-color);
+        }
+
+        .btn-lower:hover:not(:disabled) {
+            background: var(--error-color);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-light);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result {
+            text-align: center;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            font-weight: 600;
+            border-left: 4px solid;
+            animation: slideIn 0.4s ease-out;
+            line-height: 1.6;
+            font-size: 16px;
+        }
+
+        @keyframes slideIn {
+            0% { transform: translateY(-20px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+
+        .result.correct {
+            background: rgba(39, 174, 96, 0.1);
+            color: var(--success-color);
+            border-left-color: var(--success-color);
+        }
+
+        .result.incorrect {
+            background: rgba(231, 76, 60, 0.1);
+            color: var(--error-color);
+            border-left-color: var(--error-color);
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            gap: 16px;
+        }
+
+        .stat {
+            text-align: center;
+            flex: 1;
+        }
+
+        .stat-value {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            transition: all var(--transition-normal);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        .game-over {
+            text-align: center;
+            padding: 32px 24px;
+        }
+
+        .final-score {
+            font-family: 'Playfair Display', serif;
+            font-size: 32px;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            font-weight: 700;
+        }
+
+        .theme-reveal {
+            margin: 24px 0;
+            padding: 24px;
+            background: var(--bg-primary);
+            border-radius: 12px;
+            border-left: 4px solid var(--accent-color);
+        }
+
+        .theme-reveal-subtitle {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .theme-reveal-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--accent-color);
+        }
+
+        .theme-reveal-hint {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 12px;
+            font-style: italic;
+        }
+
+        .share-section {
+            display: flex;
+            justify-content: center;
+            margin: 24px 0;
+        }
+
+        .share-btn-big {
+            background: var(--navy);
+            color: white;
+            padding: 20px 32px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all var(--transition-fast);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            min-width: 200px;
+            box-shadow: var(--shadow-medium);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .share-btn-big:hover {
+            background: #34495e;
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-heavy);
+        }
+
+        .share-btn-big:focus-visible {
+            outline: 3px solid var(--accent-color);
+            outline-offset: 2px;
+        }
+
+        .share-btn-big.copied {
+            background: var(--success-color);
+            transform: scale(0.98);
+        }
+
+        .share-btn-big.copied .share-text::after {
+            content: ' ✓ Copied!';
+            animation: fadeInOut 2s ease-in-out;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; }
+            20% { opacity: 1; }
+            80% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        .share-icon {
+            font-size: 20px;
+        }
+
+        .share-text {
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .share-btn {
+            background: var(--navy);
+            color: white;
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            margin: 8px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all var(--transition-fast);
+        }
+
+        .share-btn:hover {
+            background: #34495e;
+            transform: translateY(-2px);
+        }
+
+        .share-btn:focus-visible {
+            outline: 3px solid var(--accent-color);
+            outline-offset: 2px;
+        }
+
+        .share-btn.secondary {
+            background: var(--accent-color);
+        }
+
+        .share-btn.secondary:hover {
+            background: var(--accent-dark);
+        }
+
+        .coffee-btn {
+            background: #ff813f;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            margin: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: all var(--transition-fast);
+        }
+
+        .coffee-btn:hover {
+            background: #e6742d;
+            transform: translateY(-2px);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 700px) {
+            :root {
+                --word-width: 100%;
+                --word-gap: 16px;
+            }
+            
+            .word-carousel {
+                height: auto;
+                max-width: 100%;
+            }
+            
+            .word-track {
+                flex-direction: column;
+                position: static;
+                transform: none !important;
+                transition: none !important;
+            }
+            
+            .word-slot {
+                width: 100%;
+                max-width: 280px;
+                margin: 0 auto;
+            }
+            
+            .word-slot.position-previous,
+            .word-slot.position-current,
+            .word-slot.position-next {
+                transform: scale(1) !important;
+            }
+            
+            .arrow {
+                transform: rotate(90deg);
+                font-size: 20px;
+                margin: 8px 0;
+            }
+            
+            .buttons {
+                flex-direction: column;
+            }
+
+            .header-controls {
+                position: static;
+                justify-content: center;
+                margin-top: 16px;
+            }
+
+            .game-info {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .stats {
+                flex-direction: column;
+                gap: 16px;
+            }
+
+            .stat {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .word-text {
+                font-size: 22px;
+            }
+        }
+
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+            
+            .word-track {
+                transition: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <div class="header-controls">
+                <button class="header-btn" 
+                        onclick="game.showModal('instructions')" 
+                        title="How to Play"
+                        aria-label="Show game instructions">?</button>
+                <button class="header-btn" 
+                        onclick="game.toggleTheme()" 
+                        title="Toggle Theme" 
+                        id="themeBtn"
+                        aria-label="Toggle between light and dark theme">🌙</button>
+            </div>
+            <div class="title">HansBard</div>
+            <div class="subtitle">The Daily Parliamentary Word Game</div>
+        </div>
+
+        <div id="gameScreen" class="game-content">
+            <div class="game-progress">
+                <div class="game-boxes" role="group" aria-label="Game progress">
+                    <div class="game-box" id="box0" tabindex="0" aria-label="Round 1, waiting for guess"></div>
+                    <div class="game-box" id="box1" tabindex="0" aria-label="Round 2, not yet reached"></div>
+                    <div class="game-box" id="box2" tabindex="0" aria-label="Round 3, not yet reached"></div>
+                    <div class="game-box" id="box3" tabindex="0" aria-label="Round 4, not yet reached"></div>
+                    <div class="game-box" id="box4" tabindex="0" aria-label="Round 5, not yet reached"></div>
+                </div>
+            </div>
+
+            <div class="word-slide-container">
+                <div class="word-carousel">
+                    <div class="word-track" id="wordTrack">
+                        <!-- Words will be dynamically generated here -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="question-prompt" id="questionPrompt">
+                Is "<span id="currentWordPrompt">...</span>" mentioned more or less than "<span id="previousWordPrompt">...</span>" in Parliament?
+            </div>
+
+            <div class="buttons">
+                <button class="btn btn-higher" 
+                        id="higherBtn" 
+                        onclick="game.makeGuess('higher')"
+                        aria-label="Guess that the current word is mentioned more frequently">
+                    📈 Higher
+                </button>
+                <button class="btn btn-lower" 
+                        id="lowerBtn" 
+                        onclick="game.makeGuess('lower')"
+                        aria-label="Guess that the current word is mentioned less frequently">
+                    📉 Lower
+                </button>
+            </div>
+
+            <div id="result" class="result hidden" role="alert" aria-live="polite"></div>
+
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="score">0</div>
+                    <div class="stat-label">Correct</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="bestStreak">0</div>
+                    <div class="stat-label">Best Guess Streak</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="gameOverScreen" class="game-content hidden">
+            <div class="game-over">
+                <div class="final-score">Game Complete</div>
+                <div class="final-score"><span id="finalScore">0</span>/5 Correct</div>
+                
+                <div class="theme-reveal">
+                    <div class="theme-reveal-subtitle">Today's theme was:</div>
+                    <div class="theme-reveal-title" id="finalThemeReveal">Loading...</div>
+                    <div class="theme-reveal-hint">Did you spot the connection?</div>
+                </div>
+                
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-value" id="finalGuessStreak">0</div>
+                        <div class="stat-label">Best Guess Streak</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="finalPerfectStreak">0</div>
+                        <div class="stat-label">Perfect Games</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">5</div>
+                        <div class="stat-label">Rounds</div>
+                    </div>
+                </div>
+                
+                <div class="share-section">
+                    <button class="share-btn-big" id="shareBtn" onclick="game.shareResults()">
+                        <div class="share-icon">📤</div>
+                        <div class="share-text">Share Results</div>
+                    </button>
+                </div>
+                
+                <a href="https://buymeacoffee.com/hansbard" class="coffee-btn" target="_blank" rel="noopener">☕ Buy me a coffee</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="announcements" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+
+    <script>
+        class HansBardGame {
+            constructor() {
+                this.storage = new StorageManager();
+                this.sound = new SoundManager();
+                this.dom = new DOMCache();
+                this.accessibility = new AccessibilityManager();
+                
+                this.gameState = {
+                    currentRound: 0,
+                    score: 0,
+                    gameCompleted: false,
+                    guessResults: [],
+                    currentGuessStreak: 0,
+                    perfectGameStreak: 0,
+                    bestGuessStreak: 0,
+                    bestPerfectStreak: 0,
+                    gameData: null,
+                    startTime: null
+                };
+                
+                this.settings = {
+                    theme: 'light',
+                    soundEnabled: true
+                };
+                
+                this.gameThemes = [
+                    {
+                        theme: "Speaker's Corner",
+                        words: [
+                            { word: "Corner", count: 20079 },
+                            { word: "Edge", count: 23639 },
+                            { word: "Sharp", count: 27648 },
+                            { word: "Turn", count: 221594 },
+                            { word: "Point", count: 1409298 },
+                            { word: "Right", count: 2277211 }
+                        ]
+                    },
+                    {
+                        theme: "House Rules",
+                        words: [
+                            { word: "Order", count: 542341 },
+                            { word: "Member", count: 1876543 },
+                            { word: "Clean", count: 21349 },
+                            { word: "Kitchen", count: 9871 },
+                            { word: "Table", count: 87654 },
+                            { word: "Floor", count: 65432 }
+                        ]
+                    },
+                    {
+                        theme: "Party Lines", 
+                        words: [
+                            { word: "Hold", count: 189342 },
+                            { word: "Busy", count: 12347 },
+                            { word: "Connect", count: 28765 },
+                            { word: "Cross", count: 167893 },
+                            { word: "Dead", count: 43218 },
+                            { word: "Line", count: 234567 }
+                        ]
+                    }
+                ];
+                
+                this.init();
+            }
+            
+            async init() {
+                try {
+                    await this.loadSettings();
+                    await this.loadGameData();
+                    this.setupEventListeners();
+                    this.initTheme();
+                    
+                    if (this.hasPlayedToday()) {
+                        this.showCompletedGame();
+                    } else {
+                        this.startNewGame();
+                    }
+                } catch (error) {
+                    this.handleError('Failed to initialize game', error);
+                }
+            }
+            
+            async loadSettings() {
+                this.settings = {
+                    theme: this.storage.get('theme', 'light'),
+                    soundEnabled: this.storage.get('soundEnabled', true)
+                };
+                
+                this.sound.setEnabled(this.settings.soundEnabled);
+            }
+            
+            async loadGameData() {
+                try {
+                    this.gameState.gameData = this.getTodaysGame();
+                    this.gameState.bestGuessStreak = this.storage.get('bestGuessStreak', 0);
+                    this.gameState.bestPerfectStreak = this.storage.get('bestPerfectStreak', 0);
+                    this.gameState.perfectGameStreak = this.storage.get('perfectGameStreak', 0);
+                    this.gameState.currentGuessStreak = this.storage.get('currentGuessStreak', 0);
+                    this.gameState.startTime = Date.now();
+                } catch (error) {
+                    throw new Error('Failed to load game data: ' + error.message);
+                }
+            }
+            
+            getTodaysGame() {
+                const today = new Date();
+                const daysSinceEpoch = Math.floor(today.getTime() / (1000 * 60 * 60 * 24));
+                const themeIndex = daysSinceEpoch % this.gameThemes.length;
+                return this.gameThemes[themeIndex];
+            }
+            
+            setupEventListeners() {
+                document.addEventListener('keydown', this.handleKeyPress.bind(this));
+            }
+            
+            handleKeyPress(e) {
+                const keyActions = {
+                    'ArrowUp': () => this.makeGuess('higher'),
+                    'ArrowDown': () => this.makeGuess('lower'),
+                    'h': () => this.makeGuess('higher'),
+                    'H': () => this.makeGuess('higher'),
+                    'l': () => this.makeGuess('lower'),
+                    'L': () => this.makeGuess('lower')
+                };
+                
+                const action = keyActions[e.key];
+                if (action && !this.areButtonsDisabled()) {
+                    e.preventDefault();
+                    action();
+                }
+            }
+            
+            async makeGuess(guess) {
+                if (this.gameState.gameCompleted || this.areButtonsDisabled()) return;
+                
+                try {
+                    this.disableButtons();
+                    
+                    const result = this.calculateGuessResult(guess);
+                    this.updateGameState(result);
+                    
+                    // Reveal current word first
+                    await this.revealCurrentWord();
+                    await this.showResult(result);
+                    
+                    this.accessibility.announceResult(result);
+                    
+                    // Wait for user to see result
+                    await this.delay(1750);
+                    
+                    if (this.shouldContinueGame()) {
+                        await this.slideToNextRound();
+                    } else {
+                        this.endGame();
+                    }
+                } catch (error) {
+                    this.handleError('Error making guess', error);
+                    this.enableButtons();
+                }
+            }
+            
+            calculateGuessResult(guess) {
+                const { currentRound, gameData } = this.gameState;
+                const previousWord = gameData.words[currentRound];
+                const currentWord = gameData.words[currentRound + 1];
+                
+                const isHigher = currentWord.count > previousWord.count;
+                const isCorrect = (guess === 'higher' && isHigher) || (guess === 'lower' && !isHigher);
+                
+                return {
+                    isCorrect,
+                    currentWord,
+                    previousWord,
+                    guess,
+                    message: `"${currentWord.word}" has ${currentWord.count.toLocaleString()} mentions vs "${previousWord.word}" with ${previousWord.count.toLocaleString()}`
+                };
+            }
+            
+            updateGameState(result) {
+                if (result.isCorrect) {
+                    this.gameState.score++;
+                    this.gameState.currentGuessStreak++;
+                    this.sound.play('correct');
+                    
+                    if (this.gameState.currentGuessStreak > this.gameState.bestGuessStreak) {
+                        this.gameState.bestGuessStreak = this.gameState.currentGuessStreak;
+                        this.storage.set('bestGuessStreak', this.gameState.bestGuessStreak);
+                    }
+                } else {
+                    this.gameState.currentGuessStreak = 0;
+                    this.sound.play('incorrect');
+                }
+                
+                this.gameState.guessResults.push(result.isCorrect);
+                this.storage.set('currentGuessStreak', this.gameState.currentGuessStreak);
+                
+                this.updateUI();
+            }
+            
+            async revealCurrentWord() {
+                const currentSlot = document.querySelector('.word-slot.position-current');
+                const currentWord = this.getCurrentWord();
+                
+                if (currentSlot) {
+                    currentSlot.classList.add('revealed');
+                    const countElement = currentSlot.querySelector('.word-count');
+                    if (countElement) {
+                        countElement.textContent = `${currentWord.count.toLocaleString()} mentions`;
+                    }
+                }
+                
+                // Animate arrows
+                const arrows = document.querySelectorAll('.arrow');
+                arrows.forEach(arrow => arrow.classList.add('animate'));
+                
+                return this.delay(300);
+            }
+            
+            async showResult(result) {
+                const resultDiv = this.dom.get('result');
+                if (!resultDiv) return;
+                
+                const icon = result.isCorrect ? '✓ Correct!' : '✗ Incorrect.';
+                resultDiv.innerHTML = `${icon} ${result.message}`;
+                resultDiv.className = `result ${result.isCorrect ? 'correct' : 'incorrect'}`;
+                
+                await this.delay(300);
+                resultDiv.classList.remove('hidden');
+            }
+            
+            async slideToNextRound() {
+                if (!this.shouldContinueGame()) {
+                    this.endGame();
+                    return;
+                }
+                
+                this.gameState.currentRound++;
+                
+                if (!this.shouldContinueGame()) {
+                    this.endGame();
+                    return;
+                }
+                
+                const wordTrack = this.dom.get('wordTrack');
+                if (!wordTrack || this.isMobile()) {
+                    // On mobile, just update content without sliding
+                    this.updateWordSlots();
+                    this.clearUIForNextRound();
+                    return;
+                }
+                
+                // Prepare for sliding animation
+                const slots = wordTrack.querySelectorAll('.word-slot');
+                const arrows = wordTrack.querySelectorAll('.arrow');
+                
+                // Calculate the slide distance (word width + gap)
+                const slideDistance = 204; // 180px + 24px gap
+                
+                // Apply sliding transform
+                wordTrack.style.transform = `translateX(-${slideDistance}px)`;
+                
+                // Wait for slide animation
+                await this.delay(600);
+                
+                // Reset transform instantly
+                wordTrack.style.transition = 'none';
+                wordTrack.style.transform = 'translateX(0)';
+                
+                // Remove the leftmost slot and its arrow
+                if (slots[0]) {
+                    slots[0].remove();
+                }
+                if (arrows[0]) {
+                    arrows[0].remove();
+                }
+                
+                // Update positions of remaining slots
+                const remainingSlots = wordTrack.querySelectorAll('.word-slot');
+                remainingSlots.forEach((slot, index) => {
+                    slot.classList.remove('position-previous', 'position-current', 'position-next', 'revealed');
+                    if (index === 0) slot.classList.add('position-previous');
+                    else if (index === 1) slot.classList.add('position-current');
+                    else if (index === 2) slot.classList.add('position-next');
+                });
+                
+                // Add new slot to the right
+                const newArrow = document.createElement('div');
+                newArrow.className = 'arrow';
+                newArrow.textContent = '→';
+                wordTrack.appendChild(newArrow);
+                
+                const newSlot = this.createWordSlot();
+                newSlot.classList.add('position-next');
+                
+                // Update all content
+                this.updateWordSlots();
+                
+                // Re-enable transitions
+                setTimeout(() => {
+                    wordTrack.style.transition = '';
+                }, 50);
+                
+                this.clearUIForNextRound();
+            }
+            
+            clearUIForNextRound() {
+                // Clear arrows animation
+                const arrows = document.querySelectorAll('.arrow');
+                arrows.forEach(arrow => arrow.classList.remove('animate'));
+                
+                // Clear result and enable buttons
+                this.dom.get('result')?.classList.add('hidden');
+                this.enableButtons();
+                
+                this.accessibility.announceNewRound(
+                    this.gameState.currentRound + 1,
+                    this.getCurrentWord().word,
+                    this.getPreviousWord().word
+                );
+            }
+            
+            initializeWordTrack() {
+                const wordTrack = this.dom.get('wordTrack');
+                if (!wordTrack) return;
+                
+                // Reset track position
+                wordTrack.style.transform = 'translateX(0)';
+                
+                // Clear existing content
+                wordTrack.innerHTML = '';
+                
+                // Create initial 3 word slots with position classes
+                for (let i = 0; i < 3; i++) {
+                    const slot = this.createWordSlot();
+                    
+                    // Add position classes
+                    if (i === 0) slot.classList.add('position-previous');
+                    else if (i === 1) slot.classList.add('position-current');
+                    else if (i === 2) slot.classList.add('position-next');
+                    
+                    // Add arrow after slot (except for the last one)
+                    if (i < 2) {
+                        const arrow = document.createElement('div');
+                        arrow.className = 'arrow';
+                        arrow.textContent = '→';
+                        wordTrack.appendChild(arrow);
+                    }
+                }
+                
+                // Initial content update
+                this.updateWordSlots();
+            }
+            
+            createWordSlot() {
+                const wordTrack = this.dom.get('wordTrack');
+                
+                const slot = document.createElement('div');
+                slot.className = 'word-slot';
+                
+                const card = document.createElement('div');
+                card.className = 'word-card';
+                
+                const status = document.createElement('div');
+                status.className = 'word-status';
+                
+                const text = document.createElement('div');
+                text.className = 'word-text';
+                
+                const count = document.createElement('div');
+                count.className = 'word-count';
+                
+                card.appendChild(status);
+                card.appendChild(text);
+                card.appendChild(count);
+                slot.appendChild(card);
+                
+                wordTrack.appendChild(slot);
+                
+                return slot;
+            }
+            
+            updateWordSlots() {
+                const { currentRound, gameData } = this.gameState;
+                
+                if (currentRound >= gameData.words.length - 1) return;
+                
+                const previousWord = gameData.words[currentRound];
+                const currentWord = gameData.words[currentRound + 1];
+                const nextWord = currentRound + 2 < gameData.words.length ? gameData.words[currentRound + 2] : null;
+                
+                // Update slots by position class
+                this.updateWordSlotByPosition('position-previous', previousWord, true);
+                this.updateWordSlotByPosition('position-current', currentWord, false);
+                this.updateWordSlotByPosition('position-next', nextWord, false);
+                
+                // Update question prompt
+                this.dom.get('currentWordPrompt').textContent = currentWord.word;
+                this.dom.get('previousWordPrompt').textContent = previousWord.word;
+            }
+            
+            updateWordSlotByPosition(positionClass, wordData, showCount) {
+                const slot = document.querySelector(`.word-slot.${positionClass}`);
+                if (!slot) return;
+                
+                const textElement = slot.querySelector('.word-text');
+                const countElement = slot.querySelector('.word-count');
+                
+                if (wordData) {
+                    slot.style.visibility = 'visible';
+                    textElement.textContent = wordData.word;
+                    countElement.textContent = showCount ? 
+                        `${wordData.count.toLocaleString()} mentions` : 
+                        '??? mentions';
+                } else {
+                    // For the last round, hide the next slot
+                    if (positionClass === 'position-next') {
+                        slot.style.visibility = 'hidden';
+                    }
+                }
+            }
+            
+            isMobile() {
+                return window.innerWidth <= 700;
+            }
+            
+            updateUI() {
+                const elements = {
+                    score: this.gameState.score,
+                    bestStreak: this.gameState.bestGuessStreak
+                };
+                
+                Object.entries(elements).forEach(([key, value]) => {
+                    const element = this.dom.get(key);
+                    if (element) element.textContent = value;
+                });
+                
+                this.updateGameBoxes();
+            }
+            
+            updateGameBoxes() {
+                for (let i = 0; i < 5; i++) {
+                    const box = this.dom.get(`box${i}`);
+                    if (!box) continue;
+                    
+                    box.className = 'game-box';
+                    box.textContent = '';
+                    
+                    if (i < this.gameState.guessResults.length) {
+                        setTimeout(() => {
+                            const isCorrect = this.gameState.guessResults[i];
+                            box.classList.add('completed', isCorrect ? 'correct' : 'incorrect');
+                            box.textContent = isCorrect ? '✓' : '✗';
+                            box.setAttribute('aria-label', 
+                                `Round ${i + 1}: ${isCorrect ? 'Correct' : 'Incorrect'}`);
+                        }, i * 100);
+                    } else if (i === this.gameState.currentRound) {
+                        box.classList.add('current');
+                        box.textContent = '?';
+                        box.setAttribute('aria-label', `Current round ${i + 1}, waiting for guess`);
+                    } else {
+                        box.setAttribute('aria-label', `Round ${i + 1}, not yet reached`);
+                    }
+                }
+            }
+            
+            updateGameInfo() {
+                const dateElement = this.dom.get('gameDate');
+                if (dateElement) {
+                    dateElement.textContent = new Date().toLocaleDateString('en-GB', { 
+                        weekday: 'short', 
+                        day: 'numeric', 
+                        month: 'short' 
+                    });
+                }
+                
+                const totalElement = this.dom.get('totalRounds');
+                if (totalElement && this.gameState.gameData) {
+                    totalElement.textContent = this.gameState.gameData.words.length - 1;
+                }
+            }
+            
+            startNewGame() {
+                this.gameState.currentRound = 0;
+                this.gameState.score = 0;
+                this.gameState.gameCompleted = false;
+                this.gameState.guessResults = [];
+                
+                this.dom.get('gameScreen')?.classList.remove('hidden');
+                this.dom.get('gameOverScreen')?.classList.add('hidden');
+                
+                this.initializeWordTrack();
+                this.updateUI();
+            }
+            
+            endGame() {
+                this.gameState.gameCompleted = true;
+                
+                const isPerfectGame = this.gameState.score === 5;
+                
+                if (isPerfectGame) {
+                    this.gameState.perfectGameStreak++;
+                    if (this.gameState.perfectGameStreak > this.gameState.bestPerfectStreak) {
+                        this.gameState.bestPerfectStreak = this.gameState.perfectGameStreak;
+                        this.storage.set('bestPerfectStreak', this.gameState.bestPerfectStreak);
+                    }
+                } else {
+                    this.gameState.perfectGameStreak = 0;
+                }
+                
+                this.storage.set('perfectGameStreak', this.gameState.perfectGameStreak);
+                
+                this.saveGameResults();
+                
+                this.dom.get('finalScore').textContent = this.gameState.score;
+                this.dom.get('finalGuessStreak').textContent = this.gameState.bestGuessStreak;
+                this.dom.get('finalPerfectStreak').textContent = this.gameState.bestPerfectStreak;
+                this.dom.get('finalThemeReveal').textContent = this.gameState.gameData.theme;
+                
+                this.dom.get('gameScreen')?.classList.add('hidden');
+                this.dom.get('gameOverScreen')?.classList.remove('hidden');
+                
+                this.accessibility.announceGameEnd(this.gameState.score, this.gameState.gameData.theme);
+            }
+            
+            saveGameResults() {
+                const today = this.getTodaysDate();
+                this.storage.set('gameCompleted', today);
+                this.storage.set('gameScore', this.gameState.score);
+                this.storage.set('guessResults', this.gameState.guessResults);
+            }
+            
+            hasPlayedToday() {
+                const today = this.getTodaysDate();
+                const lastPlayed = this.storage.get('gameCompleted');
+                return lastPlayed === today;
+            }
+            
+            showCompletedGame() {
+                const savedScore = this.storage.get('gameScore', 0);
+                const savedResults = this.storage.get('guessResults', []);
+                
+                this.gameState.guessResults = savedResults;
+                this.gameState.score = savedScore;
+                this.gameState.gameCompleted = true;
+                
+                this.dom.get('finalScore').textContent = savedScore;
+                this.dom.get('finalGuessStreak').textContent = this.gameState.bestGuessStreak;
+                this.dom.get('finalPerfectStreak').textContent = this.gameState.bestPerfectStreak;
+                this.dom.get('finalThemeReveal').textContent = this.gameState.gameData.theme;
+                
+                this.dom.get('gameScreen')?.classList.add('hidden');
+                this.dom.get('gameOverScreen')?.classList.remove('hidden');
+            }
+            
+            // Theme management
+            initTheme() {
+                const isDark = this.settings.theme === 'dark';
+                document.documentElement.setAttribute('data-theme', this.settings.theme);
+                this.dom.get('themeBtn').textContent = isDark ? '☀️' : '🌙';
+            }
+            
+            toggleTheme() {
+                const currentTheme = this.settings.theme;
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                
+                this.settings.theme = newTheme;
+                this.storage.set('theme', newTheme);
+                
+                document.documentElement.setAttribute('data-theme', newTheme);
+                this.dom.get('themeBtn').textContent = newTheme === 'dark' ? '☀️' : '🌙';
+            }
+            
+            // Modal management
+            showModal(type) {
+                alert('Instructions: Guess if each word is mentioned more or less in UK Parliament than the previous word. Use arrow keys or H/L for quick play!');
+            }
+            
+            // Sharing
+            async shareResults() {
+                const today = new Date();
+                const gameNumber = Math.floor((today - new Date('2024-01-01')) / (1000 * 60 * 60 * 24)) + 1;
+                const resultEmojis = this.gameState.guessResults.map(correct => correct ? '🟩' : '🟥').join('');
+                
+                const shareText = `HansBard ${gameNumber} ${this.gameState.score}/5
+
+${resultEmojis}
+
+🔥 Guess Streak: ${this.gameState.currentGuessStreak}
+🏆 Perfect Games: ${this.gameState.perfectGameStreak}
+
+Play: hansbard.com`;
+                
+                const shareBtn = this.dom.get('shareBtn');
+                shareBtn.classList.add('copied');
+                
+                setTimeout(() => {
+                    shareBtn.classList.remove('copied');
+                }, 2000);
+                
+                if (navigator.share && navigator.canShare && navigator.canShare({ text: shareText })) {
+                    try {
+                        await navigator.share({
+                            title: 'HansBard',
+                            text: shareText,
+                        });
+                    } catch (error) {
+                        this.copyToClipboard(shareText);
+                    }
+                } else {
+                    this.copyToClipboard(shareText);
+                }
+            }
+            
+            async copyToClipboard(text) {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    alert('Results copied to clipboard!');
+                } catch (error) {
+                    const textArea = document.createElement('textarea');
+                    textArea.value = text;
+                    textArea.style.position = 'fixed';
+                    textArea.style.opacity = '0';
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    
+                    try {
+                        document.execCommand('copy');
+                        alert('Results copied to clipboard!');
+                    } catch (fallbackError) {
+                        alert('Unable to copy results. Please try again.');
+                    }
+                    
+                    document.body.removeChild(textArea);
+                }
+            }
+            
+            resetGame() {
+                this.storage.remove('gameCompleted');
+                this.storage.remove('gameScore');
+                this.storage.remove('guessResults');
+                
+                this.gameState = {
+                    currentRound: 0,
+                    score: 0,
+                    gameCompleted: false,
+                    guessResults: [],
+                    currentGuessStreak: 0,
+                    perfectGameStreak: 0,
+                    bestGuessStreak: this.storage.get('bestGuessStreak', 0),
+                    bestPerfectStreak: this.storage.get('bestPerfectStreak', 0),
+                    gameData: this.gameState.gameData,
+                    startTime: Date.now()
+                };
+                
+                this.storage.set('currentGuessStreak', 0);
+                this.storage.set('perfectGameStreak', 0);
+                
+                this.startNewGame();
+            }
+            
+            // Utility methods
+            getCurrentWord() {
+                return this.gameState.gameData.words[this.gameState.currentRound + 1];
+            }
+            
+            getPreviousWord() {
+                return this.gameState.gameData.words[this.gameState.currentRound];
+            }
+            
+            shouldContinueGame() {
+                return this.gameState.currentRound < this.gameState.gameData.words.length - 2;
+            }
+            
+            areButtonsDisabled() {
+                const higherBtn = this.dom.get('higherBtn');
+                return higherBtn ? higherBtn.disabled : false;
+            }
+            
+            disableButtons() {
+                ['higherBtn', 'lowerBtn'].forEach(id => {
+                    const btn = this.dom.get(id);
+                    if (btn) btn.disabled = true;
+                });
+            }
+            
+            enableButtons() {
+                ['higherBtn', 'lowerBtn'].forEach(id => {
+                    const btn = this.dom.get(id);
+                    if (btn) btn.disabled = false;
+                });
+            }
+            
+            getTodaysDate() {
+                return new Date().toISOString().split('T')[0];
+            }
+            
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+            
+            handleError(message, error) {
+                console.error(message, error);
+                alert('Something went wrong. Please refresh the page and try again.');
+            }
+        }
+        
+        // Supporting Classes
+        class StorageManager {
+            constructor() {
+                this.prefix = 'hansbard_';
+                this.memoryStorage = new Map();
+                this.localStorageAvailable = this.checkLocalStorageAvailability();
+                this.initializeDefaults();
+            }
+            
+            checkLocalStorageAvailability() {
+                try {
+                    const test = 'test_' + Date.now();
+                    localStorage.setItem(test, 'test');
+                    localStorage.removeItem(test);
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            }
+            
+            initializeDefaults() {
+                if (!this.has('bestGuessStreak')) {
+                    this.set('bestGuessStreak', 0);
+                }
+                if (!this.has('bestPerfectStreak')) {
+                    this.set('bestPerfectStreak', 0);
+                }
+                if (!this.has('currentGuessStreak')) {
+                    this.set('currentGuessStreak', 0);
+                }
+                if (!this.has('perfectGameStreak')) {
+                    this.set('perfectGameStreak', 0);
+                }
+                if (!this.has('theme')) {
+                    this.set('theme', 'light');
+                }
+                if (!this.has('soundEnabled')) {
+                    this.set('soundEnabled', true);
+                }
+            }
+            
+            has(key) {
+                if (this.localStorageAvailable) {
+                    try {
+                        return localStorage.getItem(this.prefix + key) !== null;
+                    } catch (e) {
+                        return this.memoryStorage.has(this.prefix + key);
+                    }
+                }
+                return this.memoryStorage.has(this.prefix + key);
+            }
+            
+            get(key, defaultValue = null) {
+                const fullKey = this.prefix + key;
+                
+                if (this.localStorageAvailable) {
+                    try {
+                        const value = localStorage.getItem(fullKey);
+                        return value ? JSON.parse(value) : defaultValue;
+                    } catch (error) {
+                        return this.memoryStorage.has(fullKey) ? this.memoryStorage.get(fullKey) : defaultValue;
+                    }
+                }
+                
+                return this.memoryStorage.has(fullKey) ? this.memoryStorage.get(fullKey) : defaultValue;
+            }
+            
+            set(key, value) {
+                const fullKey = this.prefix + key;
+                
+                this.memoryStorage.set(fullKey, value);
+                
+                if (this.localStorageAvailable) {
+                    try {
+                        localStorage.setItem(fullKey, JSON.stringify(value));
+                        return true;
+                    } catch (error) {
+                        return true;
+                    }
+                }
+                
+                return true;
+            }
+            
+            remove(key) {
+                const fullKey = this.prefix + key;
+                this.memoryStorage.delete(fullKey);
+                
+                if (this.localStorageAvailable) {
+                    try {
+                        localStorage.removeItem(fullKey);
+                    } catch (error) {
+                        // Memory already removed
+                    }
+                }
+                
+                return true;
+            }
+            
+            getStorageInfo() {
+                return {
+                    type: this.localStorageAvailable ? 'localStorage' : 'memory',
+                    available: true,
+                    persistent: this.localStorageAvailable
+                };
+            }
+        }
+        
+        class DOMCache {
+            constructor() {
+                this.cache = new Map();
+            }
+            
+            get(id) {
+                if (!this.cache.has(id)) {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        this.cache.set(id, element);
+                    }
+                }
+                return this.cache.get(id) || null;
+            }
+        }
+        
+        class AccessibilityManager {
+            constructor() {
+                this.announcements = document.getElementById('announcements');
+            }
+            
+            announceToScreenReader(message) {
+                if (!this.announcements) return;
+                this.announcements.textContent = message;
+                setTimeout(() => {
+                    this.announcements.textContent = '';
+                }, 1000);
+            }
+            
+            announceResult(result) {
+                const message = `${result.isCorrect ? 'Correct' : 'Incorrect'}! ${result.message}`;
+                this.announceToScreenReader(message);
+            }
+            
+            announceNewRound(roundNumber, currentWord, previousWord) {
+                const message = `Round ${roundNumber}. Is ${currentWord} mentioned more or less than ${previousWord}?`;
+                this.announceToScreenReader(message);
+            }
+            
+            announceGameEnd(score, theme) {
+                const message = `Game complete! You scored ${score} out of 5. Today's theme was ${theme}.`;
+                this.announceToScreenReader(message);
+            }
+        }
+        
+        class SoundManager {
+            constructor() {
+                this.audioContext = null;
+                this.isSupported = !!(window.AudioContext || window.webkitAudioContext);
+                this.enabled = true;
+            }
+            
+            setEnabled(enabled) {
+                this.enabled = enabled;
+            }
+            
+            async play(type) {
+                if (!this.isSupported || !this.enabled) return;
+                
+                try {
+                    if (!this.audioContext) {
+                        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+                    
+                    if (this.audioContext.state === 'suspended') {
+                        await this.audioContext.resume();
+                    }
+                    
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    if (type === 'correct') {
+                        oscillator.frequency.setValueAtTime(523.25, this.audioContext.currentTime);
+                        oscillator.frequency.setValueAtTime(659.25, this.audioContext.currentTime + 0.1);
+                    } else if (type === 'incorrect') {
+                        oscillator.frequency.setValueAtTime(220, this.audioContext.currentTime);
+                        oscillator.frequency.setValueAtTime(196, this.audioContext.currentTime + 0.1);
+                    }
+                    
+                    gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.2);
+                    
+                    oscillator.start(this.audioContext.currentTime);
+                    oscillator.stop(this.audioContext.currentTime + 0.2);
+                } catch (error) {
+                    console.warn('Audio playback failed:', error);
+                }
+            }
+        }
+        
+        // Initialize the game
+        let game;
+        
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                game = new HansBardGame();
+            });
+        } else {
+            game = new HansBardGame();
+        }
+        
+        window.game = game;
+    </script>
+</body>
+</html>
